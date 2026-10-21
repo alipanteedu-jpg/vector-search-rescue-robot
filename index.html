@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>V.E.C.T.O.R</title>
+    <style>
+      :root {
+        --bg: #f4f5f7;
+        --panel-bg: rgba(255,255,255,0.92);
+        --ink: #101114;
+        --muted: #666d78;
+        --accent: #0070f3;
+        --accent2: #ff5500;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: var(--ink);
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      #ui-panel {
+        position: absolute;
+        left: 18px;
+        top: 18px;
+        z-index: 10;
+        width: min(380px, calc(100vw - 36px));
+        background: var(--panel-bg);
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 14px;
+        box-shadow: 0 12px 28px rgba(17,17,17,0.12);
+        padding: 18px 18px 14px;
+        backdrop-filter: blur(8px);
+      }
+
+      h1 {
+        margin: 0 0 4px;
+        font-size: clamp(1.1rem, 2vw, 1.5rem);
+        font-weight: 800;
+        line-height: 1.2;
+      }
+
+      .subtitle {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      .btn-toggle {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 14px;
+        border: none;
+        border-radius: 10px;
+        background: #111;
+        color: #fff;
+        font-size: 0.76rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.2s ease;
+      }
+
+      .btn-toggle:hover { background: #222; }
+      .btn-toggle.active { background: var(--accent); }
+
+      .section-title {
+        margin: 16px 0 8px;
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #7b7f87;
+      }
+
+      .component-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        max-height: 220px;
+        overflow-y: auto;
+      }
+
+      .comp-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        background: rgba(0,0,0,0.03);
+        border-radius: 7px;
+        font-size: 0.72rem;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent2);
+        box-shadow: 0 0 0 2px rgba(255,85,0,0.15);
+        flex-shrink: 0;
+      }
+
+      @media (max-width: 640px) {
+        #ui-panel {
+          left: 12px;
+          top: 12px;
+          width: min(320px, calc(100vw - 24px));
+          padding: 14px 14px 12px;
+        }
+
+        .component-list {
+          grid-template-columns: 1fr;
+          max-height: 160px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="ui-panel">
+      <h1>V.E.C.T.O.R</h1>
+      <div class="subtitle">Search & Rescue Autonomous Ground Vehicle</div>
+
+      <button id="toggle-xray" class="btn-toggle" type="button" aria-label="Toggle X-ray shell">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M15 12A3 3 0 1 1 9 12a3 3 0 0 1 6 0Z"/>
+          <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7Z"/>
+        </svg>
+        Toggle X-Ray / Transparent Shell
+      </button>
+
+      <div class="section-title">Key Components</div>
+      <div class="component-list">
+        <div class="comp-item"><span class="dot"></span>LiPo Battery</div>
+        <div class="comp-item"><span class="dot"></span>Raspberry Pi</div>
+        <div class="comp-item"><span class="dot"></span>IMU Sensor</div>
+        <div class="comp-item"><span class="dot"></span>ESP32</div>
+        <div class="comp-item"><span class="dot"></span>Mecanum Wheels</div>
+        <div class="comp-item"><span class="dot"></span>Drive Motors</div>
+        <div class="comp-item"><span class="dot"></span>Camera Tower</div>
+        <div class="comp-item"><span class="dot"></span>UWB Module</div>
+      </div>
+    </div>
+
+    <script type="module">
+      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js';
+      import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.154.0/examples/jsm/controls/OrbitControls.js';
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf4f5f7);
+
+      const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(5, 3.5, 6);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      document.body.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 + 0.05;
+
+      const transparentShellMat = new THREE.MeshPhysicalMaterial({
+        color: 0xff5500,
+        roughness: 0.2,
+        metalness: 0.1,
+        transmission: 0.85,
+        transparent: true,
+        opacity: 0.35,
+        ior: 1.5,
+        side: THREE.DoubleSide
+      });
+
+      const solidShellMat = new THREE.MeshStandardMaterial({
+        color: 0xff5500,
+        roughness: 0.4,
+        metalness: 0.2,
+        side: THREE.DoubleSide
+      });
+
+      const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5, metalness: 0.8 });
+      const polishedMetalMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.15, metalness: 0.95 });
+      const pcbGreenMat = new THREE.MeshStandardMaterial({ color: 0x1f8a4c, roughness: 0.3, metalness: 0.1 });
+      const pcbDarkMat = new THREE.MeshStandardMaterial({ color: 0x0f5223, roughness: 0.3, metalness: 0.1 });
+      const batteryRedMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.4, metalness: 0.2 });
+      const tireRubberMat = new THREE.MeshStandardMaterial({ color: 0x111113, roughness: 0.9, metalness: 0.05 });
+      const glowCyanMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x00f0ff, emissiveIntensity: 2.0 });
+      const copperWireMat = new THREE.MeshStandardMaterial({ color: 0xb87333, roughness: 0.3, metalness: 0.8 });
+      const ribbonCableMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+
+      const robot = new THREE.Group();
+      const outerShellGroup = new THREE.Group();
+
+      const frameGroup = new THREE.Group();
+      for (let side of [-0.4, 0.4]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.08), darkMetalMat);
+        rail.position.set(0, 0.04, side);
+        rail.castShadow = true;
+        frameGroup.add(rail);
+      }
+      for (let x of [-0.9, -0.3, 0.3, 0.9]) {
+        const cross = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.88), darkMetalMat);
+        cross.position.set(x, 0.04, 0);
+        cross.castShadow = true;
+        frameGroup.add(cross);
+      }
+      robot.add(frameGroup);
+
+      const battery = new THREE.Group();
+      const batBlock = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.4), batteryRedMat);
+      batBlock.castShadow = true;
+      battery.add(batBlock);
+      for (let x of [-0.18, 0.18]) {
+        const strap = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.42), darkMetalMat);
+        battery.add(strap);
+      }
+      battery.position.set(-0.55, 0.18, 0);
+      robot.add(battery);
+
+      const dcdc = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.22), pcbDarkMat);
+      const heatsinkDcdc = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.12), polishedMetalMat);
+      heatsinkDcdc.position.y = 0.06;
+      dcdc.add(heatsinkDcdc);
+      dcdc.position.set(-0.15, 0.12, 0);
+      robot.add(dcdc);
+
+      for (let zSide of [-0.22, 0.22]) {
+        const mDriver = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.22), pcbDarkMat);
+        const heatsink1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.08), darkMetalMat);
+        heatsink1.position.set(-0.06, 0.04, 0);
+        const heatsink2 = heatsink1.clone();
+        heatsink2.position.set(0.06, 0.04, 0);
+        mDriver.add(heatsink1, heatsink2);
+        mDriver.position.set(0.18, 0.12, zSide);
+        robot.add(mDriver);
+      }
+
+      const deckPlate = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.03, 0.8), darkMetalMat);
+      deckPlate.position.set(0.05, 0.28, 0);
+      robot.add(deckPlate);
+
+      const rpi = new THREE.Group();
+      const rpiBoard = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.02, 0.3), pcbGreenMat);
+      rpi.add(rpiBoard);
+      const ethPort = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.08), polishedMetalMat);
+      ethPort.position.set(0.18, 0.05, -0.08);
+      rpi.add(ethPort);
+      rpi.position.set(-0.35, 0.32, -0.18);
+      robot.add(rpi);
+
+      const esp32 = new THREE.Group();
+      const espBoard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.015, 0.12), pcbGreenMat);
+      const espShield = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.09), polishedMetalMat);
+      espShield.position.set(-0.02, 0.015, 0);
+      esp32.add(espBoard, espShield);
+      esp32.position.set(0.2, 0.32, -0.18);
+      robot.add(esp32);
+
+      const imu = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.015, 0.08), glowCyanMat);
+      imu.position.set(0.0, 0.31, 0.0);
+      robot.add(imu);
+
+      const uwb = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.02, 16), glowCyanMat);
+      uwb.position.set(0.65, 0.31, 0.28);
+      robot.add(uwb);
+
+      function createMecanumWheel(isRight) {
+        const wGroup = new THREE.Group();
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.24, 24), darkMetalMat);
+        rim.rotation.x = Math.PI / 2;
+        wGroup.add(rim);
+
+        for (let i = 0; i < 10; i++) {
+          const angle = (i / 10) * Math.PI * 2;
+          const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.18, 12), tireRubberMat);
+          const r = 0.32;
+          roller.position.set(Math.cos(angle) * r, Math.sin(angle) * r, 0);
+          roller.rotation.z = angle;
+          roller.rotation.x = (Math.PI / 4) * (isRight ? 1 : -1);
+          roller.castShadow = true;
+          wGroup.add(roller);
+        }
+        return wGroup;
+      }
+
+      const wheelPositions = [
+        { x: -0.85, z: -0.58, isRight: false },
+        { x: 0.85, z: -0.58, isRight: true },
+        { x: -0.85, z: 0.58, isRight: false },
+        { x: 0.85, z: 0.58, isRight: true }
+      ];
+
+      wheelPositions.forEach(pos => {
+        const wheel = createMecanumWheel(pos.isRight);
+        wheel.position.set(pos.x, 0.0, pos.z);
+        robot.add(wheel);
+
+        const motor = new THREE.Group();
+        const motorBody = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.3, 16), polishedMetalMat);
+        motorBody.rotation.z = Math.PI / 2;
+        motor.add(motorBody);
+
+        const encoderCap = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.08, 16), glowCyanMat);
+        encoderCap.rotation.z = Math.PI / 2;
+        encoderCap.position.x = pos.x > 0 ? -0.18 : 0.18;
+        motor.add(encoderCap);
+
+        motor.position.set(pos.x * 0.75, 0.0, pos.z * 0.65);
+        robot.add(motor);
+      });
+
+      function addCablePath(points, mat, radius = 0.012) {
+        const curve = new THREE.CatmullRomCurve3(points);
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, radius, 8, false), mat);
+        robot.add(tube);
+      }
+
+      addCablePath([
+        new THREE.Vector3(-0.55, 0.25, 0.0),
+        new THREE.Vector3(-0.3, 0.15, 0.0),
+        new THREE.Vector3(-0.15, 0.15, 0.0)
+      ], copperWireMat, 0.018);
+
+      addCablePath([
+        new THREE.Vector3(-0.35, 0.33, -0.18),
+        new THREE.Vector3(-0.1, 0.35, -0.18),
+        new THREE.Vector3(0.2, 0.33, -0.18)
+      ], ribbonCableMat, 0.01);
+
+      addCablePath([
+        new THREE.Vector3(0.0, 0.32, 0.0),
+        new THREE.Vector3(-0.15, 0.34, -0.09),
+        new THREE.Vector3(-0.35, 0.33, -0.18)
+      ], glowCyanMat, 0.008);
+
+      const shellShape = new THREE.Shape();
+      shellShape.moveTo(-1.2, -0.2);
+      shellShape.lineTo(1.2, -0.2);
+      shellShape.lineTo(1.4, 0.2);
+      shellShape.lineTo(1.0, 0.55);
+      shellShape.lineTo(-1.0, 0.55);
+      shellShape.lineTo(-1.4, 0.2);
+      shellShape.closePath();
+
+      const shellGeo = new THREE.ExtrudeGeometry(shellShape, {
+        steps: 2,
+        depth: 0.95,
+        bevelEnabled: true,
+        bevelThickness: 0.05,
+        bevelSize: 0.05
+      });
+      shellGeo.center();
+
+      const shellMesh = new THREE.Mesh(shellGeo, transparentShellMat);
+      shellMesh.position.y = 0.22;
+      outerShellGroup.add(shellMesh);
+
+      const cameraPod = new THREE.Group();
+      const podBase = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.2, 16), darkMetalMat);
+      cameraPod.add(podBase);
+
+      const podHead = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.15, 0.18), solidShellMat);
+      podHead.position.y = 0.18;
+      const rgbLens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 16), darkMetalMat);
+      rgbLens.rotation.x = Math.PI / 2;
+      rgbLens.position.set(-0.09, 0, 0.08);
+      const nirLens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 16), glowCyanMat);
+      nirLens.rotation.x = Math.PI / 2;
+      nirLens.position.set(0.09, 0, 0.08);
+      podHead.add(rgbLens, nirLens);
+      cameraPod.add(podHead);
+      cameraPod.position.set(0.85, 0.55, 0);
+      outerShellGroup.add(cameraPod);
+
+      const speaker = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 20), darkMetalMat);
+      speaker.rotation.z = Math.PI / 2;
+      speaker.position.set(1.22, 0.3, -0.22);
+      outerShellGroup.add(speaker);
+
+      const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 12), polishedMetalMat);
+      mic.position.set(1.22, 0.3, 0.22);
+      outerShellGroup.add(mic);
+
+      const antGroup = new THREE.Group();
+      const antBase = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.08, 12), darkMetalMat);
+      const antRod = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.65, 8), polishedMetalMat);
+      antRod.position.y = 0.32;
+      const antTip = new THREE.Mesh(new THREE.SphereGeometry(0.02), glowCyanMat);
+      antTip.position.y = 0.65;
+      antGroup.add(antBase, antRod, antTip);
+      antGroup.position.set(-0.9, 0.55, -0.32);
+      outerShellGroup.add(antGroup);
+
+      robot.add(outerShellGroup);
+      scene.add(robot);
+
+      const shadowPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(20, 20),
+        new THREE.ShadowMaterial({ opacity: 0.12 })
+      );
+      shadowPlane.rotation.x = -Math.PI / 2;
+      shadowPlane.position.y = -0.25;
+      shadowPlane.receiveShadow = true;
+      scene.add(shadowPlane);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
+      keyLight.position.set(6, 8, 5);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.width = 2048;
+      keyLight.shadow.mapSize.height = 2048;
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+      fillLight.position.set(-6, 4, -4);
+      scene.add(fillLight);
+
+      let isXrayActive = true;
+      const toggleBtn = document.getElementById('toggle-xray');
+      toggleBtn.addEventListener('click', () => {
+        isXrayActive = !isXrayActive;
+        shellMesh.material = isXrayActive ? transparentShellMat : solidShellMat;
+        toggleBtn.classList.toggle('active', !isXrayActive);
+      });
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>
